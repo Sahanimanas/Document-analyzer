@@ -5,7 +5,18 @@ require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
-app.use(cors()); // Allow all origins for dev
+const allowedOrigins = ['https://document-analyzerm.vercel.app'];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed for this origin'));
+    }
+  },
+  credentials: true // only if you're using cookies or auth headers
+}));// Allow all origins for dev
 
 app.get('/', (req, res) => {
   res.send('Welcome to the Proxy Server Analyzer!');
