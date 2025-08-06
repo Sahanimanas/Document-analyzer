@@ -1,0 +1,14 @@
+{
+  "name": "document-qa-system",
+  "version": "1.0.0",
+  "description": "A web app to ask questions about a document using files or text.",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -c-1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

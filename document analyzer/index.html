@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A with LLM (PDF, TXT, EML support)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js for rendering Markdown in the answer -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- PDF.js from Mozilla for parsing PDF files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for the drop zone */
+        #dropZone {
+            border: 3px dashed #4a5568;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        #dropZone.drag-over {
+            border-color: #3b82f6;
+            background-color: #2d3748;
+        }
+    </style>
+    <!-- Add this line before your main script tag -->
+<script src="config.js"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+
+    <div class="w-full max-w-4xl mx-auto bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-8">
+        
+        <div class="text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2">Advanced Document Q&A</h1>
+            <p class="text-gray-400 text-base sm:text-lg">Paste text or drop a PDF, TXT, or EML file to get started.</p>
+        </div>
+
+        <!-- Document Input Section with Drag and Drop -->
+        <div class="space-y-4">
+            <label class="block text-lg font-semibold text-gray-200">1. Provide Your Document</label>
+            <div id="dropZone" class="relative w-full p-4 bg-gray-900 rounded-lg">
+                <div id="dropZoneMessage" class="text-center text-gray-500 flex flex-col items-center justify-center pointer-events-none">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h2a4 4 0 014 4v1m-4 5l-4 4m0 0l4-4m-4 4h14m-5 4v1a4 4 0 004-4V7a4 4 0 00-4-4h-2a4 4 0 00-4 4v1"/></svg>
+                    <p class="font-semibold">Drag & Drop a file here</p>
+                    <p class="text-sm">(.pdf, .txt, .eml)</p>
+                    <span class="my-2 text-xs">OR</span>
+                    <button id="browseFileBtn" type="button" class="pointer-events-auto bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">Browse Files</button>
+                </div>
+                <textarea id="documentText" rows="12" class="w-full p-4 bg-transparent border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-gray-300 z-10" placeholder="Paste text here, or drop a file..."></textarea>
+                <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.eml" >
+            </div>
+            <div id="file-parsing-status" class="text-center text-sm text-yellow-400"></div>
+        </div>
+
+        <div class="space-y-4">
+            <label for="question" class="block text-lg font-semibold text-gray-200">2. Ask a Question</label>
+            <input type="text" id="question" class="w-full p-4 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="e.g., What was the main conclusion of the report?">
+        </div>
+
+        <div>
+            <button id="getAnswerBtn" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707.707M12 21v-1m0-16a9 9 0 110 18 9 9 0 010-18z" /></svg>
+                Generate Answer
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <h2 class="text-lg font-semibold text-gray-200">3. Answer</h2>
+            <div id="answerContainer" class="w-full min-h-[100px] p-4 bg-gray-900 border border-gray-700 rounded-lg prose prose-invert max-w-none">
+                <p class="text-gray-500">The answer will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const documentTextInput = document.getElementById('documentText');
+        const questionInput = document.getElementById('question');
+        const getAnswerBtn = document.getElementById('getAnswerBtn');
+        const answerContainer = document.getElementById('answerContainer');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const browseFileBtn = document.getElementById('browseFileBtn');
+        const fileParsingStatus = document.getElementById('file-parsing-status');
+        
+        // Setup PDF.js worker
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        }
+
+        // --- Event Listeners ---
+        getAnswerBtn.addEventListener('click', handleGetAnswer);
+        browseFileBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Drag and Drop Listeners
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        /**
+         * Handles the selected file, routing it to the correct parser.
+         * @param {File} file The file selected by the user.
+         */
+        function handleFile(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            fileParsingStatus.textContent = `Parsing ${file.name}...`;
+            documentTextInput.value = ''; // Clear previous text
+
+            const reader = new FileReader();
+
+            switch (extension) {
+                case 'txt':
+                    reader.onload = (e) => {
+                        documentTextInput.value = e.target.result;
+                        fileParsingStatus.textContent = `Successfully parsed ${file.name}.`;
+                    };
+                    reader.readAsText(file);
+                    break;
+                case 'eml':
+                    reader.onload = (e) => {
+                        documentTextInput.value = parseEml(e.target.result);
+                        fileParsingStatus.textContent = `Successfully parsed ${file.name}.`;
+                    };
+                    reader.readAsText(file);
+                    break;
+                case 'pdf':
+                    reader.onload = async (e) => {
+                        try {
+                            const pdfText = await parsePdf(e.target.result);
+                            documentTextInput.value = pdfText;
+                            fileParsingStatus.textContent = `Successfully parsed ${file.name}.`;
+                        } catch (error) {
+                            console.error("PDF Parsing Error:", error);
+                            fileParsingStatus.textContent = `Error parsing PDF: ${error.message}`;
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                    break;
+                default:
+                    fileParsingStatus.textContent = `Unsupported file type: .${extension}`;
+            }
+        }
+
+        /**
+         * Parses text from a PDF file.
+         * @param {ArrayBuffer} data The PDF file data.
+         * @returns {Promise<string>} A promise that resolves with the extracted text.
+         */
+        async function parsePdf(data) {
+            const pdf = await pdfjsLib.getDocument({ data }).promise;
+            let allText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                allText += pageText + '\n\n';
+            }
+            return allText;
+        }
+
+        /**
+         * A simple parser for .eml files to extract the main body.
+         * @param {string} data The raw string content of the .eml file.
+         * @returns {string} The extracted body of the email.
+         */
+        function parseEml(data) {
+            const bodyStartIndex = data.indexOf('\n\n');
+            if (bodyStartIndex === -1) return data;
+            let body = data.substring(bodyStartIndex).trim();
+            body = body.split(/\n>|On.*wrote:/)[0]; 
+            return body;
+        }
+
+        /**
+         * Main function to handle the "Get Answer" button click.
+         */
+        async function handleGetAnswer() {
+            const documentText = documentTextInput.value.trim();
+            const question = questionInput.value.trim();
+
+            if (!documentText || !question) {
+                answerContainer.innerHTML = '<p class="text-red-400">Please provide both a document and a question.</p>';
+                return;
+            }
+
+            getAnswerBtn.disabled = true;
+            answerContainer.innerHTML = `<div class="flex flex-col items-center justify-center space-y-2"><div class="loader"></div><p class="text-gray-400">Analyzing the document and generating an answer...</p></div>`;
+
+            try {
+                const response = await fetch('http://localhost:3000/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ documentText, question })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMessage = errorData?.error || `Proxy request failed with status ${response.status}`;
+                    throw new Error(errorMessage);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0]?.content?.parts?.[0]) {
+                    const llmResponseText = result.candidates[0].content.parts[0].text;
+                    answerContainer.innerHTML = marked.parse(llmResponseText);
+                } else if (result.promptFeedback) {
+                    const blockReason = result.promptFeedback.blockReason;
+                    throw new Error(`Request was blocked by the API. Reason: ${blockReason}. This can happen due to safety settings.`);
+                } else {
+                    throw new Error("Invalid response structure from the API.");
+                }
+            } catch (error) {
+                console.error("Error fetching from proxy server:", error);
+                answerContainer.innerHTML = `<p class="text-red-400 font-semibold">An error occurred:</p><p class="text-red-300 mt-2">${error.message}</p>`;
+            } finally {
+                getAnswerBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
